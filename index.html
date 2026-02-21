@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HotBurrito — Small Business Control Center</title>
+  <style>
+    /* ── Reset & Variables ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:   #e85d04;
+      --primary-d: #c04b02;
+      --accent:    #ffd166;
+      --bg:        #f8f7f4;
+      --surface:   #ffffff;
+      --border:    #e2e0db;
+      --text:      #1a1a1a;
+      --muted:     #6b6b6b;
+      --success:   #2a9d8f;
+      --warning:   #e9c46a;
+      --danger:    #e76f51;
+      --sidebar-w: 220px;
+      --radius:    10px;
+      --shadow:    0 2px 8px rgba(0,0,0,.08);
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────── */
+    #sidebar {
+      width: var(--sidebar-w); background: #1a1a1a; color: #f0f0f0;
+      display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100;
+    }
+    .brand { padding: 20px 18px 16px; border-bottom: 1px solid #333; }
+    .brand h1 { font-size: 1.25rem; color: var(--primary); letter-spacing: .5px; }
+    .brand p  { font-size: .72rem; color: #999; margin-top: 2px; }
+    nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+    nav a {
+      display: flex; align-items: center; gap: 10px; padding: 10px 18px;
+      color: #ccc; text-decoration: none; font-size: .88rem; border-left: 3px solid transparent;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    nav a:hover { background: #2a2a2a; color: #fff; }
+    nav a.active { background: #2a2a2a; color: var(--primary); border-left-color: var(--primary); font-weight: 600; }
+    nav a .icon { font-size: 1.1rem; width: 20px; text-align: center; }
+    .sidebar-footer { padding: 14px 18px; border-top: 1px solid #333; font-size: .75rem; color: #666; }
+
+    /* ── Main ────────────────────────────────────────────────────────── */
+    #main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar h2 { font-size: 1.1rem; font-weight: 700; }
+    .topbar-actions { display: flex; gap: 10px; }
+    .btn {
+      padding: 7px 16px; border-radius: var(--radius); border: none; cursor: pointer;
+      font-size: .84rem; font-weight: 600; transition: background .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-d); }
+    .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: var(--bg); }
+    .btn-sm { padding: 5px 11px; font-size: .78rem; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger  { background: var(--danger);  color: #fff; }
+
+    /* ── Content Panels ──────────────────────────────────────────────── */
+    .content { padding: 28px; flex: 1; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── Cards / Grid ────────────────────────────────────────────────── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+    .card-title { font-size: .9rem; font-weight: 700; margin-bottom: 14px; color: var(--text); }
+    .grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 18px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 18px; }
+    @media(max-width:900px){ .grid-4,.grid-3 { grid-template-columns: repeat(2,1fr); } }
+    @media(max-width:600px){ .grid-4,.grid-3,.grid-2 { grid-template-columns: 1fr; } }
+
+    /* ── Stat Cards ──────────────────────────────────────────────────── */
+    .stat-card { text-align: center; padding: 18px; }
+    .stat-value { font-size: 1.9rem; font-weight: 700; color: var(--primary); }
+    .stat-label { font-size: .78rem; color: var(--muted); margin-top: 4px; }
+    .stat-change { font-size: .75rem; margin-top: 6px; font-weight: 600; }
+    .up   { color: var(--success); }
+    .down { color: var(--danger); }
+
+    /* ── Overview Page ───────────────────────────────────────────────── */
+    .overview-hero {
+      background: linear-gradient(135deg, var(--primary) 0%, #ff8c42 100%);
+      color: #fff; border-radius: var(--radius); padding: 28px 32px; margin-bottom: 22px;
+    }
+    .overview-hero h3 { font-size: 1.5rem; margin-bottom: 6px; }
+    .overview-hero p  { opacity: .9; font-size: .9rem; }
+
+    /* ── Pipeline ────────────────────────────────────────────────────── */
+    .pipeline { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; }
+    .pipeline-col {
+      min-width: 200px; flex: 1; background: var(--bg); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 12px;
+    }
+    .pipeline-col-header {
+      font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+      margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .pipeline-badge { background: var(--primary); color: #fff; border-radius: 20px; padding: 1px 8px; font-size: .7rem; }
+    .pipeline-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; margin-bottom: 8px; cursor: grab; font-size: .84rem;
+    }
+    .pipeline-card:active { cursor: grabbing; }
+    .pipeline-card .client-name { font-weight: 600; }
+    .pipeline-card .client-value { color: var(--success); font-size: .78rem; margin-top: 3px; }
+    .pipeline-card .client-date  { color: var(--muted);  font-size: .75rem; margin-top: 2px; }
+    .drop-target { border: 2px dashed var(--primary); background: #fff5f0; }
+
+    /* ── Contact Table ───────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    thead th { text-align: left; padding: 10px 12px; background: var(--bg); color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+    tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tbody tr:hover { background: #fafaf8; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+    .tag-lead   { background: #fff3cd; color: #856404; }
+    .tag-active { background: #d1fae5; color: #065f46; }
+    .tag-won    { background: #dbeafe; color: #1e40af; }
+    .tag-lost   { background: #fee2e2; color: #991b1b; }
+
+    /* ── Reminder List ───────────────────────────────────────────────── */
+    .reminder-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .reminder-item:last-child { border-bottom: none; }
+    .reminder-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .reminder-text { flex: 1; font-size: .84rem; }
+    .reminder-due  { font-size: .75rem; color: var(--muted); }
+    input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer; }
+
+    /* ── Prompt Cards ────────────────────────────────────────────────── */
+    .prompt-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--surface); }
+    .prompt-card .prompt-category { font-size: .72rem; text-transform: uppercase; letter-spacing: .6px; color: var(--primary); font-weight: 700; margin-bottom: 6px; }
+    .prompt-card h4 { font-size: .9rem; font-weight: 700; margin-bottom: 8px; }
+    .prompt-card p  { font-size: .82rem; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+    .prompt-text {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px; font-size: .8rem; color: var(--text); line-height: 1.6;
+      font-family: inherit; white-space: pre-wrap; cursor: text;
+    }
+    .prompt-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+    /* ── Task Board ──────────────────────────────────────────────────── */
+    .task-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .task-item:last-child { border-bottom: none; }
+    .task-info { flex: 1; }
+    .task-title { font-size: .86rem; font-weight: 600; }
+    .task-meta  { font-size: .75rem; color: var(--muted); margin-top: 3px; }
+    .task-priority { font-size: .7rem; padding: 1px 7px; border-radius: 20px; font-weight: 700; flex-shrink: 0; }
+    .p-high   { background: #fee2e2; color: #991b1b; }
+    .p-medium { background: #fff3cd; color: #856404; }
+    .p-low    { background: #d1fae5; color: #065f46; }
+
+    /* ── Weekly Planner ──────────────────────────────────────────────── */
+    .week-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 8px; }
+    .day-col { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; min-height: 140px; }
+    .day-name { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 8px; }
+    .day-col.today { border-color: var(--primary); background: #fff5f0; }
+    .day-col.today .day-name { color: var(--primary); }
+    .day-event { background: var(--surface); border-left: 3px solid var(--primary); border-radius: 4px; padding: 5px 7px; margin-bottom: 5px; font-size: .75rem; }
+    .day-event.success-ev { border-left-color: var(--success); }
+    .day-event.warning-ev { border-left-color: var(--warning); }
+    @media(max-width:700px){ .week-grid { grid-template-columns: repeat(2,1fr); } }
+
+    /* ── Revenue ─────────────────────────────────────────────────────── */
+    .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding: 0 4px; }
+    .bar-wrap  { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+    .bar       { width: 100%; background: var(--primary); border-radius: 4px 4px 0 0; transition: height .4s ease; min-height: 4px; }
+    .bar.expense { background: var(--danger); }
+    .bar-label { font-size: .68rem; color: var(--muted); white-space: nowrap; }
+    .chart-legend { display: flex; gap: 16px; margin-top: 10px; font-size: .78rem; }
+    .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+    .expense-form { display: grid; gap: 10px; }
+    .expense-form label { font-size: .82rem; font-weight: 600; display: block; margin-bottom: 3px; }
+    .expense-form input, .expense-form select {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: .84rem; background: var(--bg); color: var(--text);
+    }
+    .expense-form input:focus, .expense-form select:focus { outline: 2px solid var(--primary); border-color: transparent; }
+
+    /* ── Automation Guide ────────────────────────────────────────────── */
+    .step-list { counter-reset: steps; }
+    .step { counter-increment: steps; display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: .78rem;
+      font-weight: 700; flex-shrink: 0; margin-top: 1px;
+    }
+    .step-body h4 { font-size: .9rem; font-weight: 700; margin-bottom: 4px; }
+    .step-body p  { font-size: .82rem; color: var(--muted); line-height: 1.6; }
+    .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 12px; margin-top: 16px; }
+    .tool-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+    .tool-card .tool-icon { font-size: 1.8rem; margin-bottom: 6px; }
+    .tool-card h4 { font-size: .84rem; font-weight: 700; margin-bottom: 4px; }
+    .tool-card p  { font-size: .74rem; color: var(--muted); line-height: 1.4; }
+
+    /* ── Modal ───────────────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 200; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border-radius: var(--radius); padding: 26px; width: min(480px,92vw); box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+    .modal h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: .82rem; font-weight: 600; margin-bottom: 4px; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: .84rem; background: var(--bg); color: var(--text); font-family: inherit;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus { outline: 2px solid var(--primary); border-color: transparent; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
+    /* ── Misc ────────────────────────────────────────────────────────── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .section-header h3 { font-size: 1rem; font-weight: 700; }
+    .mb-16 { margin-bottom: 16px; }
+    .mb-20 { margin-bottom: 20px; }
+    .text-muted { color: var(--muted); font-size: .82rem; }
+    .profit-positive { color: var(--success); font-weight: 700; }
+    .profit-negative { color: var(--danger);  font-weight: 700; }
+    .search-bar { width: 100%; max-width: 280px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: .84rem; background: var(--bg); }
+    .search-bar:focus { outline: 2px solid var(--primary); border-color: transparent; }
+    .empty-state { text-align: center; padding: 28px; color: var(--muted); font-size: .84rem; }
+    .copy-success { color: var(--success); font-size: .75rem; margin-left: 6px; opacity: 0; transition: opacity .3s; }
+    .copy-success.show { opacity: 1; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════ SIDEBAR ══════════════════ -->
+<aside id="sidebar">
+  <div class="brand">
+    <h1>🌯 HotBurrito</h1>
+    <p>Small Business Control Center</p>
+  </div>
+  <nav aria-label="Main navigation">
+    <a href="#" class="nav-link active" data-panel="overview" aria-label="Overview">
+      <span class="icon" aria-hidden="true">🏠</span> Overview
+    </a>
+    <a href="#" class="nav-link" data-panel="clients" aria-label="Clients and Leads">
+      <span class="icon" aria-hidden="true">👥</span> Clients & Leads
+    </a>
+    <a href="#" class="nav-link" data-panel="marketing" aria-label="AI Marketing">
+      <span class="icon" aria-hidden="true">📣</span> AI Marketing
+    </a>
+    <a href="#" class="nav-link" data-panel="tasks" aria-label="Tasks and Projects">
+      <span class="icon" aria-hidden="true">✅</span> Tasks & Projects
+    </a>
+    <a href="#" class="nav-link" data-panel="revenue" aria-label="Revenue and Expenses">
+      <span class="icon" aria-hidden="true">💰</span> Revenue & Expenses
+    </a>
+    <a href="#" class="nav-link" data-panel="automation" aria-label="Automation Guide">
+      <span class="icon" aria-hidden="true">⚡</span> Automation Guide
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    © 2025 HotBurrito · v1.0
+  </div>
+</aside>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<div id="main">
+  <header class="topbar">
+    <h2 id="page-title">Overview</h2>
+    <div class="topbar-actions">
+      <span id="current-date" class="text-muted"></span>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ───────────── 1. OVERVIEW ───────────── -->
+    <div class="panel active" id="panel-overview">
+      <div class="overview-hero">
+        <h3>Welcome back! 👋</h3>
+        <p>Here's a quick snapshot of your business today.</p>
+      </div>
+      <div class="grid-4 mb-20">
+        <div class="card stat-card">
+          <div class="stat-value" id="ov-leads">0</div>
+          <div class="stat-label">Active Leads</div>
+          <div class="stat-change up">↑ pipeline</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-value" id="ov-tasks">0</div>
+          <div class="stat-label">Open Tasks</div>
+          <div class="stat-change" id="ov-tasks-change">—</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-value" id="ov-revenue">$0</div>
+          <div class="stat-label">Monthly Revenue</div>
+          <div class="stat-change up">↑ this month</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-value" id="ov-profit">$0</div>
+          <div class="stat-label">Net Profit</div>
+          <div class="stat-change" id="ov-profit-change">—</div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">📌 Today's Follow-Ups</div>
+          <div id="ov-reminders"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">✅ Upcoming Deadlines</div>
+          <div id="ov-deadlines"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────────── 2. CLIENTS & LEADS ───────────── -->
+    <div class="panel" id="panel-clients">
+
+      <!-- Pipeline View -->
+      <div class="section-header mb-16">
+        <h3>🔁 Lead Pipeline</h3>
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-client')">+ Add Lead</button>
+      </div>
+      <div class="card mb-20">
+        <div class="pipeline" id="pipeline-board">
+          <!-- Columns injected by JS -->
+        </div>
+      </div>
+
+      <!-- Contact Database -->
+      <div class="section-header mb-16">
+        <h3>📋 Contact Database</h3>
+        <input class="search-bar" type="search" id="contact-search" placeholder="🔍  Search contacts…" oninput="filterContacts()" />
+      </div>
+      <div class="card mb-20">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Value</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="contact-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Follow-Up Reminders -->
+      <div class="section-header mb-16">
+        <h3>🔔 Follow-Up Reminders</h3>
+        <button class="btn btn-outline btn-sm" onclick="openModal('modal-add-reminder')">+ Add Reminder</button>
+      </div>
+      <div class="card">
+        <div id="reminder-list"></div>
+      </div>
+    </div>
+
+    <!-- ───────────── 3. AI MARKETING ───────────── -->
+    <div class="panel" id="panel-marketing">
+      <div class="section-header mb-16">
+        <h3>🤖 AI Marketing Prompts</h3>
+        <span class="text-muted">Copy a prompt → paste into ChatGPT or your AI tool</span>
+      </div>
+
+      <!-- Social Media -->
+      <div class="card mb-20">
+        <div class="card-title">📱 Social Media Posts</div>
+        <div class="grid-2" id="sm-prompts"></div>
+      </div>
+
+      <!-- Ads -->
+      <div class="card mb-20">
+        <div class="card-title">📢 Ad Copy</div>
+        <div class="grid-2" id="ad-prompts"></div>
+      </div>
+
+      <!-- Email Campaigns -->
+      <div class="card">
+        <div class="card-title">📧 Email Campaigns</div>
+        <div class="grid-2" id="email-prompts"></div>
+      </div>
+    </div>
+
+    <!-- ───────────── 4. TASKS & PROJECTS ───────────── -->
+    <div class="panel" id="panel-tasks">
+
+      <!-- Weekly Planner -->
+      <div class="section-header mb-16">
+        <h3>📅 Weekly Planner</h3>
+        <button class="btn btn-outline btn-sm" onclick="openModal('modal-add-event')">+ Add Event</button>
+      </div>
+      <div class="card mb-20">
+        <div class="week-grid" id="week-planner"></div>
+      </div>
+
+      <!-- Team Tasks -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="section-header mb-16">
+            <div class="card-title" style="margin:0">👤 Team Tasks</div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-task')">+ Task</button>
+          </div>
+          <div id="team-task-list"></div>
+        </div>
+
+        <!-- Deadlines -->
+        <div class="card">
+          <div class="card-title">⏰ Deadlines</div>
+          <div id="deadline-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────────── 5. REVENUE & EXPENSES ───────────── -->
+    <div class="panel" id="panel-revenue">
+
+      <!-- KPI row -->
+      <div class="grid-4 mb-20" id="revenue-kpis"></div>
+
+      <div class="grid-2 mb-20">
+        <!-- Bar chart -->
+        <div class="card">
+          <div class="card-title">📊 Monthly Overview (last 6 months)</div>
+          <div class="bar-chart" id="rev-bar-chart"></div>
+          <div class="chart-legend">
+            <span><span class="legend-dot" style="background:var(--primary)"></span>Income</span>
+            <span><span class="legend-dot" style="background:var(--danger)"></span>Expenses</span>
+          </div>
+        </div>
+
+        <!-- Add transaction -->
+        <div class="card">
+          <div class="card-title">➕ Log Transaction</div>
+          <div class="expense-form">
+            <div>
+              <label>Description</label>
+              <input type="text" id="tx-desc" placeholder="e.g. Client payment, Software subscription" />
+            </div>
+            <div>
+              <label>Amount ($)</label>
+              <input type="number" id="tx-amount" placeholder="0.00" min="0" step="0.01" />
+            </div>
+            <div>
+              <label>Type</label>
+              <select id="tx-type">
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
+            </div>
+            <div>
+              <label>Category</label>
+              <select id="tx-category">
+                <option>Services</option>
+                <option>Products</option>
+                <option>Marketing</option>
+                <option>Software</option>
+                <option>Payroll</option>
+                <option>Rent / Utilities</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div>
+              <label>Date</label>
+              <input type="date" id="tx-date" />
+            </div>
+            <button class="btn btn-primary" onclick="addTransaction()">Add Transaction</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transaction table -->
+      <div class="card">
+        <div class="section-header mb-16">
+          <div class="card-title" style="margin:0">📄 Transaction History</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Description</th><th>Category</th><th>Type</th><th>Amount</th><th></th></tr>
+            </thead>
+            <tbody id="tx-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────────── 6. AUTOMATION GUIDE ───────────── -->
+    <div class="panel" id="panel-automation">
+      <div class="section-header mb-16">
+        <h3>⚡ Automation Guide</h3>
+        <span class="text-muted">Simple steps to connect AI & automate your workflows</span>
+      </div>
+
+      <div class="grid-2 mb-20">
+        <div class="card">
+          <div class="card-title">🔌 How to Connect AI Tools</div>
+          <div class="step-list" id="ai-connect-steps"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🔄 How to Automate Workflows</div>
+          <div class="step-list" id="workflow-steps"></div>
+        </div>
+      </div>
+
+      <div class="card mb-20">
+        <div class="card-title">🧰 Recommended Tools</div>
+        <div class="tool-grid" id="tool-grid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">💡 Automation Ideas for Your Business</div>
+        <div id="automation-ideas"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+
+<!-- ══════════════════ MODALS ══════════════════ -->
+
+<!-- Add Client/Lead -->
+<div class="modal-overlay" id="modal-add-client">
+  <div class="modal">
+    <h3>Add New Lead / Contact</h3>
+    <div class="form-group"><label>Full Name *</label><input type="text" id="cl-name" placeholder="Jane Smith" /></div>
+    <div class="form-group"><label>Email</label><input type="email" id="cl-email" placeholder="jane@example.com" /></div>
+    <div class="form-group"><label>Phone</label><input type="tel" id="cl-phone" placeholder="+1 555 000 0000" /></div>
+    <div class="form-group"><label>Deal Value ($)</label><input type="number" id="cl-value" placeholder="0" min="0" /></div>
+    <div class="form-group">
+      <label>Pipeline Stage</label>
+      <select id="cl-stage">
+        <option value="New Lead">New Lead</option>
+        <option value="Contacted">Contacted</option>
+        <option value="Proposal Sent">Proposal Sent</option>
+        <option value="Negotiation">Negotiation</option>
+        <option value="Won">Won</option>
+        <option value="Lost">Lost</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-client')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClient()">Save Lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Reminder -->
+<div class="modal-overlay" id="modal-add-reminder">
+  <div class="modal">
+    <h3>Add Follow-Up Reminder</h3>
+    <div class="form-group"><label>Contact / Note *</label><input type="text" id="rm-note" placeholder="Follow up with Jane about proposal" /></div>
+    <div class="form-group"><label>Due Date *</label><input type="date" id="rm-date" /></div>
+    <div class="form-group">
+      <label>Priority</label>
+      <select id="rm-priority">
+        <option value="#e85d04">High</option>
+        <option value="#e9c46a">Medium</option>
+        <option value="#2a9d8f">Low</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-reminder')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveReminder()">Save Reminder</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Task -->
+<div class="modal-overlay" id="modal-add-task">
+  <div class="modal">
+    <h3>Add Task</h3>
+    <div class="form-group"><label>Task Title *</label><input type="text" id="t-title" placeholder="Design new landing page" /></div>
+    <div class="form-group"><label>Assigned To</label><input type="text" id="t-assign" placeholder="e.g. Sarah" /></div>
+    <div class="form-group"><label>Deadline</label><input type="date" id="t-deadline" /></div>
+    <div class="form-group">
+      <label>Priority</label>
+      <select id="t-priority">
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-task')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTask()">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Event -->
+<div class="modal-overlay" id="modal-add-event">
+  <div class="modal">
+    <h3>Add Planner Event</h3>
+    <div class="form-group"><label>Event Title *</label><input type="text" id="ev-title" placeholder="Team standup" /></div>
+    <div class="form-group"><label>Day</label>
+      <select id="ev-day">
+        <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+        <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Color</label>
+      <select id="ev-color">
+        <option value="">Default (orange)</option>
+        <option value="success-ev">Green</option>
+        <option value="warning-ev">Yellow</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-event')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEvent()">Add Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ JAVASCRIPT ══════════════════ -->
+<script>
+/* ─── State ─────────────────────────────────────────────────────────────── */
+const state = {
+  clients:   [],
+  reminders: [],
+  tasks:     [],
+  events:    {Monday:[],Tuesday:[],Wednesday:[],Thursday:[],Friday:[],Saturday:[],Sunday:[]},
+  transactions: [],
+};
+
+const PIPELINE_STAGES = ['New Lead','Contacted','Proposal Sent','Negotiation','Won','Lost'];
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+/* ─── Navigation ─────────────────────────────────────────────────────────── */
+const PANEL_TITLES = {
+  overview:   'Overview',
+  clients:    'Clients & Leads',
+  marketing:  'AI Marketing System',
+  tasks:      'Tasks & Projects',
+  revenue:    'Revenue & Expenses',
+  automation: 'Automation Guide',
+};
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    const panelId = link.dataset.panel;
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    link.classList.add('active');
+    document.getElementById('panel-' + panelId).classList.add('active');
+    document.getElementById('page-title').textContent = PANEL_TITLES[panelId];
+    if (panelId === 'overview') updateOverview();
+  });
+});
+
+/* ─── Date ───────────────────────────────────────────────────────────────── */
+(function setDate(){
+  const el = document.getElementById('current-date');
+  if (el) el.textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const td = document.getElementById('tx-date');
+  const rm = document.getElementById('rm-date');
+  const td2 = document.getElementById('t-deadline');
+  const today = new Date().toISOString().split('T')[0];
+  if (td) td.value = today;
+  if (rm) rm.value = today;
+  if (td2) td2.value = today;
+})();
+
+/* ─── Inline Validation Helper ───────────────────────────────────────────── */
+function showError(fieldId, msg) {
+  const field = document.getElementById(fieldId);
+  if (!field) return;
+  field.style.outline = '2px solid var(--danger)';
+  let errEl = field.parentNode.querySelector('.field-error');
+  if (!errEl) {
+    errEl = document.createElement('span');
+    errEl.className = 'field-error';
+    errEl.style.cssText = 'color:var(--danger);font-size:.75rem;display:block;margin-top:3px;';
+    errEl.setAttribute('role', 'alert');
+    field.parentNode.appendChild(errEl);
+  }
+  errEl.textContent = msg;
+}
+function clearError(fieldId) {
+  const field = document.getElementById(fieldId);
+  if (!field) return;
+  field.style.outline = '';
+  const errEl = field.parentNode.querySelector('.field-error');
+  if (errEl) errEl.remove();
+}
+
+/* ─── Modal Helpers ──────────────────────────────────────────────────────── */
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
+});
+
+/* ─── CLIENTS & LEADS ────────────────────────────────────────────────────── */
+function saveClient() {
+  const name = document.getElementById('cl-name').value.trim();
+  if (!name) { showError('cl-name', 'Name is required.'); return; }
+  clearError('cl-name');
+  state.clients.push({
+    id:    Date.now(),
+    name,
+    email: document.getElementById('cl-email').value.trim(),
+    phone: document.getElementById('cl-phone').value.trim(),
+    value: parseFloat(document.getElementById('cl-value').value) || 0,
+    stage: document.getElementById('cl-stage').value,
+  });
+  ['cl-name','cl-email','cl-phone','cl-value'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cl-stage').value = 'New Lead';
+  closeModal('modal-add-client');
+  renderPipeline();
+  renderContacts();
+  updateOverview();
+}
+
+function deleteClient(id) {
+  state.clients = state.clients.filter(c => c.id !== id);
+  renderPipeline();
+  renderContacts();
+  updateOverview();
+}
+
+function statusTag(stage) {
+  const map = {Won:'tag-won', Lost:'tag-lost', 'New Lead':'tag-lead', Contacted:'tag-lead',
+                'Proposal Sent':'tag-active', Negotiation:'tag-active'};
+  return `<span class="tag ${map[stage]||'tag-lead'}">${stage}</span>`;
+}
+
+function renderPipeline() {
+  const board = document.getElementById('pipeline-board');
+  board.innerHTML = PIPELINE_STAGES.map(stage => {
+    const cards = state.clients.filter(c => c.stage === stage);
+    return `
+      <div class="pipeline-col" data-stage="${stage}" ondragover="event.preventDefault();this.classList.add('drop-target')" ondragleave="this.classList.remove('drop-target')" ondrop="dropClient(event,'${stage}')">
+        <div class="pipeline-col-header">
+          ${stage}
+          <span class="pipeline-badge">${cards.length}</span>
+        </div>
+        ${cards.map(c => `
+          <div class="pipeline-card" draggable="true" ondragstart="dragClient(event,${c.id})">
+            <div class="client-name">${c.name}</div>
+            ${c.value ? `<div class="client-value">$${c.value.toLocaleString()}</div>` : ''}
+            ${c.email ? `<div class="client-date">✉ ${c.email}</div>` : ''}
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+}
+
+let dragId = null;
+function dragClient(e, id) { dragId = id; }
+function dropClient(e, stage) {
+  e.currentTarget.classList.remove('drop-target');
+  if (!dragId) return;
+  const c = state.clients.find(x => x.id === dragId);
+  if (c) c.stage = stage;
+  dragId = null;
+  renderPipeline();
+  renderContacts();
+}
+
+function renderContacts(filter = '') {
+  const tbody = document.getElementById('contact-table-body');
+  const list = filter
+    ? state.clients.filter(c => c.name.toLowerCase().includes(filter) || c.email.toLowerCase().includes(filter))
+    : state.clients;
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No contacts yet — add your first lead!</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(c => `
+    <tr>
+      <td><strong>${c.name}</strong></td>
+      <td>${c.email||'—'}</td>
+      <td>${c.phone||'—'}</td>
+      <td>${statusTag(c.stage)}</td>
+      <td>${c.value ? '$'+c.value.toLocaleString() : '—'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteClient(${c.id})">✕</button></td>
+    </tr>`).join('');
+}
+
+function filterContacts() {
+  renderContacts(document.getElementById('contact-search').value.toLowerCase());
+}
+
+/* ─── REMINDERS ──────────────────────────────────────────────────────────── */
+function saveReminder() {
+  const note = document.getElementById('rm-note').value.trim();
+  if (!note) { showError('rm-note', 'Note is required.'); return; }
+  clearError('rm-note');
+  state.reminders.push({
+    id:       Date.now(),
+    note,
+    date:     document.getElementById('rm-date').value,
+    color:    document.getElementById('rm-priority').value,
+    done:     false,
+  });
+  document.getElementById('rm-note').value = '';
+  closeModal('modal-add-reminder');
+  renderReminders();
+  updateOverview();
+}
+
+function toggleReminder(id) {
+  const r = state.reminders.find(x => x.id === id);
+  if (r) r.done = !r.done;
+  renderReminders();
+  updateOverview();
+}
+
+function renderReminders() {
+  const el = document.getElementById('reminder-list');
+  if (!state.reminders.length) {
+    el.innerHTML = `<div class="empty-state">No reminders — add your first follow-up!</div>`;
+    return;
+  }
+  el.innerHTML = state.reminders.map(r => `
+    <div class="reminder-item" style="${r.done?'opacity:.5':''}">
+      <input type="checkbox" ${r.done?'checked':''} onchange="toggleReminder(${r.id})" />
+      <span class="reminder-dot" style="background:${r.color}"></span>
+      <div class="reminder-text">${r.note}</div>
+      <div class="reminder-due">${r.date}</div>
+      <button class="btn btn-outline btn-sm" onclick="deleteReminder(${r.id})">✕</button>
+    </div>`).join('');
+}
+
+function deleteReminder(id) {
+  state.reminders = state.reminders.filter(r => r.id !== id);
+  renderReminders();
+  updateOverview();
+}
+
+/* ─── MARKETING PROMPTS ──────────────────────────────────────────────────── */
+const PROMPTS = {
+  social: [
+    {
+      title: 'Product Highlight Post',
+      desc: 'Showcase a product or service with a compelling hook.',
+      prompt: `Write an engaging Instagram caption for my [BUSINESS TYPE] business promoting [PRODUCT/SERVICE]. 
+Tone: [energetic/professional/friendly]. 
+Include: a hook, key benefit, call to action, and 5 relevant hashtags.
+Target audience: [DESCRIBE AUDIENCE].`,
+    },
+    {
+      title: 'Behind-the-Scenes Post',
+      desc: 'Build trust by showing how your business operates.',
+      prompt: `Create a behind-the-scenes Facebook post for my [BUSINESS TYPE] business. 
+Show authenticity about [ASPECT OF BUSINESS]. 
+Keep it warm, relatable, and end with a question to boost engagement.`,
+    },
+    {
+      title: 'Customer Testimonial Share',
+      desc: 'Turn a positive review into a social post.',
+      prompt: `Turn this customer review into a compelling social media post:
+"[PASTE REVIEW HERE]"
+Business: [BUSINESS NAME / TYPE].
+Make it feel genuine and include a CTA to get similar results.`,
+    },
+    {
+      title: 'Weekly Tip / Value Post',
+      desc: 'Provide value and establish authority in your niche.',
+      prompt: `Write a LinkedIn post sharing [NUMBER] tips about [TOPIC RELEVANT TO YOUR INDUSTRY].
+Format as a numbered list with a brief explanation for each.
+End with a CTA encouraging followers to save or share.`,
+    },
+  ],
+  ads: [
+    {
+      title: 'Facebook / Instagram Ad',
+      desc: 'High-converting ad copy with a strong offer.',
+      prompt: `Write a Facebook ad for [BUSINESS NAME] selling [PRODUCT/SERVICE] at [PRICE].
+Structure:
+- Attention-grabbing headline (max 8 words)
+- Problem the product solves
+- Key benefit (what makes it unique)
+- Offer or discount
+- Clear CTA button text
+Target: [AUDIENCE DESCRIPTION].`,
+    },
+    {
+      title: 'Google Search Ad',
+      desc: 'Short, keyword-rich copy for Google Ads.',
+      prompt: `Create 3 Google Search Ad variations for [PRODUCT/SERVICE].
+Each variation needs:
+- Headline 1 (30 chars max)
+- Headline 2 (30 chars max)
+- Description (90 chars max)
+Keywords to include: [LIST KEYWORDS].
+USP: [YOUR UNIQUE SELLING POINT].`,
+    },
+    {
+      title: 'Retargeting Ad',
+      desc: 'Win back visitors who left without buying.',
+      prompt: `Write a retargeting ad for visitors who viewed [PRODUCT/SERVICE] but didn't purchase.
+Remind them of the value, address a potential objection ([OBJECTION]), 
+and offer an incentive (e.g. [DISCOUNT/FREE SHIPPING]).
+Keep copy under 150 words.`,
+    },
+    {
+      title: 'Event / Promotion Ad',
+      desc: 'Drive sign-ups or sales for a limited-time offer.',
+      prompt: `Write an ad promoting [EVENT/SALE NAME] happening [DATE].
+Business: [BUSINESS NAME]. Offer: [DESCRIBE OFFER].
+Create urgency with scarcity language.
+Include headline, body copy (max 125 words), and CTA.`,
+    },
+  ],
+  email: [
+    {
+      title: 'Welcome Email',
+      desc: "Set the tone for new subscribers or customers.",
+      prompt: `Write a welcome email for new subscribers of [BUSINESS NAME].
+Include:
+1. Warm greeting + thank them for joining
+2. What they can expect (value you'll deliver)
+3. Quick win or freebie they can use right now
+4. Invite them to reply with a question
+Tone: [friendly/professional]. Subject line suggestions (3 options).`,
+    },
+    {
+      title: 'Promotional / Sales Email',
+      desc: 'Drive immediate purchases with a time-limited offer.',
+      prompt: `Write a promotional email for [BUSINESS NAME] offering [DISCOUNT/DEAL] on [PRODUCT/SERVICE].
+Deadline: [DATE].
+Structure: subject line, preview text, hook, story/reason for offer,
+product description, CTA button text, P.S. line to reinforce urgency.`,
+    },
+    {
+      title: 'Re-engagement Email',
+      desc: 'Win back inactive subscribers.',
+      prompt: `Write a re-engagement email for subscribers who haven't opened in [X] months.
+Business: [BUSINESS NAME]. 
+Acknowledge the silence, offer something valuable, and ask if they 
+want to stay on the list. Include a "Yes, keep me subscribed" CTA.`,
+    },
+    {
+      title: 'Abandoned Cart Email',
+      desc: 'Recover lost sales from cart abandoners.',
+      prompt: `Write an abandoned cart email for [BUSINESS NAME].
+Product left in cart: [PRODUCT NAME] at [PRICE].
+Include: subject line with emoji, reminder of product benefit, 
+social proof (e.g. "X people bought this today"), optional discount code [CODE],
+and a clear CTA link.`,
+    },
+  ],
+};
+
+function copyPrompt(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const span = btn.nextElementSibling;
+    if (span) { span.classList.add('show'); setTimeout(() => span.classList.remove('show'), 2000); }
+  });
+}
+
+function renderPrompts() {
+  const renderGroup = (containerId, arr) => {
+    const el = document.getElementById(containerId);
+    el.innerHTML = arr.map((p, i) => `
+      <div class="prompt-card">
+        <div class="prompt-category">${containerId.replace('-prompts','').replace('sm','Social').replace('ad','Ads').replace('email','Email')}</div>
+        <h4>${p.title}</h4>
+        <p>${p.desc}</p>
+        <div class="prompt-text" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Editable prompt for ${p.title}">${p.prompt}</div>
+        <div class="prompt-actions">
+          <button class="btn btn-primary btn-sm" onclick="copyPrompt(this, this.closest('.prompt-card').querySelector('.prompt-text').innerText)">📋 Copy Prompt</button>
+          <span class="copy-success">✓ Copied!</span>
+        </div>
+      </div>`).join('');
+  };
+  renderGroup('sm-prompts',    PROMPTS.social);
+  renderGroup('ad-prompts',    PROMPTS.ads);
+  renderGroup('email-prompts', PROMPTS.email);
+}
+
+/* ─── TASKS ──────────────────────────────────────────────────────────────── */
+function saveTask() {
+  const title = document.getElementById('t-title').value.trim();
+  if (!title) { showError('t-title', 'Task title is required.'); return; }
+  clearError('t-title');
+  state.tasks.push({
+    id:       Date.now(),
+    title,
+    assignee: document.getElementById('t-assign').value.trim(),
+    deadline: document.getElementById('t-deadline').value,
+    priority: document.getElementById('t-priority').value,
+    done:     false,
+  });
+  document.getElementById('t-title').value = '';
+  document.getElementById('t-assign').value = '';
+  closeModal('modal-add-task');
+  renderTasks();
+  updateOverview();
+}
+
+function toggleTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (t) t.done = !t.done;
+  renderTasks();
+  updateOverview();
+}
+
+function deleteTask(id) {
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  renderTasks();
+  updateOverview();
+}
+
+function renderTasks() {
+  const el = document.getElementById('team-task-list');
+  const dl = document.getElementById('deadline-list');
+  if (!state.tasks.length) {
+    el.innerHTML = `<div class="empty-state">No tasks yet!</div>`;
+    dl.innerHTML = `<div class="empty-state">No deadlines yet!</div>`;
+    return;
+  }
+  el.innerHTML = state.tasks.map(t => `
+    <div class="task-item" style="${t.done?'opacity:.5':''}">
+      <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${t.id})" />
+      <div class="task-info">
+        <div class="task-title" style="${t.done?'text-decoration:line-through':''}">${t.title}</div>
+        <div class="task-meta">${t.assignee ? '👤 '+t.assignee : ''} ${t.deadline ? '· 📅 '+t.deadline : ''}</div>
+      </div>
+      <span class="task-priority p-${t.priority}">${t.priority}</span>
+      <button class="btn btn-outline btn-sm" onclick="deleteTask(${t.id})">✕</button>
+    </div>`).join('');
+
+  const upcoming = [...state.tasks].filter(t => !t.done && t.deadline).sort((a,b) => a.deadline.localeCompare(b.deadline));
+  dl.innerHTML = upcoming.length ? upcoming.map(t => `
+    <div class="task-item">
+      <span class="task-priority p-${t.priority}">${t.priority}</span>
+      <div class="task-info">
+        <div class="task-title">${t.title}</div>
+        <div class="task-meta">📅 ${t.deadline} ${t.assignee?'· 👤 '+t.assignee:''}</div>
+      </div>
+    </div>`).join('') : `<div class="empty-state">No upcoming deadlines</div>`;
+}
+
+/* ─── WEEKLY PLANNER ─────────────────────────────────────────────────────── */
+function saveEvent() {
+  const title = document.getElementById('ev-title').value.trim();
+  if (!title) { showError('ev-title', 'Event title is required.'); return; }
+  clearError('ev-title');
+  const day = document.getElementById('ev-day').value;
+  state.events[day].push({ title, color: document.getElementById('ev-color').value });
+  document.getElementById('ev-title').value = '';
+  closeModal('modal-add-event');
+  renderPlanner();
+}
+
+function renderPlanner() {
+  const today = new Date().toLocaleDateString('en-US',{weekday:'long'});
+  const el = document.getElementById('week-planner');
+  el.innerHTML = DAYS.map(day => `
+    <div class="day-col ${day === today ? 'today' : ''}">
+      <div class="day-name">${day.slice(0,3)}</div>
+      ${(state.events[day]||[]).map(ev => `
+        <div class="day-event ${ev.color||''}">${ev.title}</div>`).join('')}
+    </div>`).join('');
+}
+
+/* ─── REVENUE & EXPENSES ─────────────────────────────────────────────────── */
+function addTransaction() {
+  const desc   = document.getElementById('tx-desc').value.trim();
+  const amount = parseFloat(document.getElementById('tx-amount').value);
+  let valid = true;
+  if (!desc)               { showError('tx-desc',   'Description is required.'); valid = false; } else clearError('tx-desc');
+  if (isNaN(amount) || amount <= 0) { showError('tx-amount', 'Enter a valid positive amount.'); valid = false; } else clearError('tx-amount');
+  if (!valid) return;
+  state.transactions.push({
+    id:       Date.now(),
+    desc,
+    amount,
+    type:     document.getElementById('tx-type').value,
+    category: document.getElementById('tx-category').value,
+    date:     document.getElementById('tx-date').value,
+  });
+  document.getElementById('tx-desc').value   = '';
+  document.getElementById('tx-amount').value = '';
+  renderRevenue();
+}
+
+function deleteTransaction(id) {
+  state.transactions = state.transactions.filter(t => t.id !== id);
+  renderRevenue();
+}
+
+function renderRevenue() {
+  const income  = state.transactions.filter(t => t.type === 'income').reduce((s,t) => s+t.amount, 0);
+  const expense = state.transactions.filter(t => t.type === 'expense').reduce((s,t) => s+t.amount, 0);
+  const profit  = income - expense;
+
+  // KPI cards
+  document.getElementById('revenue-kpis').innerHTML = `
+    <div class="card stat-card">
+      <div class="stat-value">$${income.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      <div class="stat-label">Total Income</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-value" style="color:var(--danger)">$${expense.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      <div class="stat-label">Total Expenses</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-value ${profit>=0?'profit-positive':'profit-negative'}">$${Math.abs(profit).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      <div class="stat-label">Net Profit</div>
+      <div class="stat-change ${profit>=0?'up':'down'}">${profit>=0?'▲ Profitable':'▼ In the red'}</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-value">${income>0?(((profit/income)*100).toFixed(1))+'%':'—'}</div>
+      <div class="stat-label">Profit Margin</div>
+    </div>`;
+
+  // Bar chart (last 6 calendar months)
+  const months = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ key: d.toISOString().slice(0,7), label: d.toLocaleString('en-US',{month:'short'}) });
+  }
+  const monthIncome  = months.map(m => state.transactions.filter(t => t.type==='income'  && t.date.startsWith(m.key)).reduce((s,t)=>s+t.amount,0));
+  const monthExpense = months.map(m => state.transactions.filter(t => t.type==='expense' && t.date.startsWith(m.key)).reduce((s,t)=>s+t.amount,0));
+  const maxVal = Math.max(...monthIncome, ...monthExpense, 1);
+
+  document.getElementById('rev-bar-chart').innerHTML = months.map((m,i) => `
+    <div class="bar-wrap">
+      <div class="bar"       style="height:${(monthIncome[i]/maxVal*120).toFixed(1)}px" title="Income: $${monthIncome[i].toFixed(2)}"></div>
+      <div class="bar expense" style="height:${(monthExpense[i]/maxVal*120).toFixed(1)}px" title="Expense: $${monthExpense[i].toFixed(2)}"></div>
+      <div class="bar-label">${m.label}</div>
+    </div>`).join('');
+
+  // Table
+  const tbody = document.getElementById('tx-table-body');
+  const sorted = [...state.transactions].sort((a,b) => b.date.localeCompare(a.date));
+  tbody.innerHTML = sorted.length
+    ? sorted.map(t => `
+        <tr>
+          <td>${t.date}</td>
+          <td>${t.desc}</td>
+          <td>${t.category}</td>
+          <td><span class="tag ${t.type==='income'?'tag-won':'tag-lost'}">${t.type}</span></td>
+          <td class="${t.type==='income'?'profit-positive':'profit-negative'}">
+            ${t.type==='income'?'+':'-'}$${t.amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+          </td>
+          <td><button class="btn btn-outline btn-sm" onclick="deleteTransaction(${t.id})">✕</button></td>
+        </tr>`).join('')
+    : `<tr><td colspan="6" class="empty-state">No transactions logged yet.</td></tr>`;
+
+  updateOverview();
+}
+
+/* ─── AUTOMATION GUIDE ───────────────────────────────────────────────────── */
+function renderAutomation() {
+  const aiSteps = [
+    { title: 'Choose Your AI Assistant', body: 'Sign up for <strong>ChatGPT</strong> (chat.openai.com) or <strong>Claude</strong> (claude.ai). Both offer free tiers perfect for getting started.' },
+    { title: 'Connect to Your Workflow Tools', body: 'Use <strong>Zapier</strong> or <strong>Make (Integromat)</strong> to connect your AI tool with apps like Gmail, Slack, Google Sheets, or your CRM via API keys.' },
+    { title: 'Set Up Your First AI Prompt', body: 'Go to the <strong>AI Marketing</strong> tab, copy a prompt template, customize the [BRACKETS], and paste into your AI tool. Save successful outputs as templates.' },
+    { title: 'Build a Prompt Library', body: 'Keep a shared Google Doc or Notion page with prompts that work for your business. Tag them by type (social, email, ads) for quick access.' },
+    { title: 'Test & Refine', body: 'Run each prompt 3–5 times, pick the best output, and refine the prompt wording until you consistently get great results.' },
+  ];
+  const wfSteps = [
+    { title: 'Map Your Repetitive Tasks', body: 'List tasks you do weekly. Examples: sending follow-up emails, posting to social media, creating weekly reports, invoicing clients.' },
+    { title: 'Pick an Automation Platform', body: '<strong>Zapier</strong> — easiest, 750+ app integrations. <strong>Make</strong> — more powerful, visual builder. <strong>n8n</strong> — free & self-hosted option.' },
+    { title: 'Create Your First Zap/Scenario', body: 'Example: <em>"When a new row is added to my Google Sheet (new lead), automatically send a welcome email via Gmail."</em>' },
+    { title: 'Automate Social Posting', body: 'Use <strong>Buffer</strong> or <strong>Later</strong> to schedule posts. Connect via Zapier to auto-post AI-generated content from Google Docs.' },
+    { title: 'Set Up Automated Reports', body: 'Connect Google Sheets to your transaction data and schedule a weekly summary email. Tools: Google Sheets + Apps Script or Zapier + Gmail.' },
+  ];
+
+  const renderSteps = (id, steps) => {
+    document.getElementById(id).innerHTML = steps.map((s,i) => `
+      <div class="step">
+        <div class="step-num">${i+1}</div>
+        <div class="step-body">
+          <h4>${s.title}</h4>
+          <p>${s.body}</p>
+        </div>
+      </div>`).join('');
+  };
+  renderSteps('ai-connect-steps', aiSteps);
+  renderSteps('workflow-steps',   wfSteps);
+
+  const tools = [
+    { icon:'🤖', name:'ChatGPT',    desc:'AI writing & ideation' },
+    { icon:'⚡', name:'Zapier',     desc:'No-code automation' },
+    { icon:'🔄', name:'Make',       desc:'Visual workflow builder' },
+    { icon:'📅', name:'Buffer',     desc:'Social media scheduler' },
+    { icon:'📧', name:'Mailchimp',  desc:'Email marketing' },
+    { icon:'📊', name:'Google Sheets', desc:'Free spreadsheets & reporting' },
+    { icon:'🗂️', name:'Notion',    desc:'Docs, wikis & databases' },
+    { icon:'💬', name:'Slack',      desc:'Team communication' },
+    { icon:'🎨', name:'Canva',      desc:'AI-powered design' },
+    { icon:'🔗', name:'Calendly',   desc:'Automated scheduling' },
+  ];
+  document.getElementById('tool-grid').innerHTML = tools.map(t => `
+    <div class="tool-card">
+      <div class="tool-icon">${t.icon}</div>
+      <h4>${t.name}</h4>
+      <p>${t.desc}</p>
+    </div>`).join('');
+
+  const ideas = [
+    '🔔 Auto-send a follow-up email 24h after a lead fills your contact form',
+    '📱 Repurpose a blog post → generate social captions with AI → auto-schedule via Buffer',
+    '💰 Log a new sale in Google Sheets → auto-generate & email an invoice',
+    '📊 Every Monday at 8 AM → send yourself a revenue summary from last week',
+    '🗓️ Client books a call via Calendly → auto-add to CRM + send confirmation email',
+    '⭐ Customer leaves a 5-star review → auto-post a thank-you on social media',
+  ];
+  document.getElementById('automation-ideas').innerHTML = ideas.map(i => `
+    <div class="reminder-item">
+      <span style="font-size:1rem">${i.slice(0,2)}</span>
+      <div class="reminder-text">${i.slice(2)}</div>
+    </div>`).join('');
+}
+
+/* ─── OVERVIEW ───────────────────────────────────────────────────────────── */
+function updateOverview() {
+  const activeLeads = state.clients.filter(c => !['Won','Lost'].includes(c.stage)).length;
+  const openTasks   = state.tasks.filter(t => !t.done).length;
+  const income  = state.transactions.filter(t => t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense = state.transactions.filter(t => t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const profit  = income - expense;
+
+  document.getElementById('ov-leads').textContent   = activeLeads;
+  document.getElementById('ov-tasks').textContent   = openTasks;
+  document.getElementById('ov-revenue').textContent = '$'+income.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('ov-profit').textContent  = '$'+Math.abs(profit).toLocaleString('en-US',{maximumFractionDigits:0});
+  const pc = document.getElementById('ov-profit-change');
+  pc.textContent = profit >= 0 ? '▲ Profitable' : '▼ In the red';
+  pc.className = 'stat-change ' + (profit >= 0 ? 'up' : 'down');
+
+  // Today's follow-ups
+  const today = new Date().toISOString().split('T')[0];
+  const todayRem = state.reminders.filter(r => r.date === today && !r.done);
+  const ovRem = document.getElementById('ov-reminders');
+  ovRem.innerHTML = todayRem.length
+    ? todayRem.map(r => `
+        <div class="reminder-item">
+          <span class="reminder-dot" style="background:${r.color}"></span>
+          <div class="reminder-text">${r.note}</div>
+        </div>`).join('')
+    : `<div class="empty-state">No follow-ups due today 🎉</div>`;
+
+  // Upcoming deadlines (next 7 days)
+  const in7 = new Date(); in7.setDate(in7.getDate()+7);
+  const upDeadlines = state.tasks.filter(t => !t.done && t.deadline && t.deadline >= today && t.deadline <= in7.toISOString().split('T')[0])
+    .sort((a,b) => a.deadline.localeCompare(b.deadline));
+  const ovDl = document.getElementById('ov-deadlines');
+  ovDl.innerHTML = upDeadlines.length
+    ? upDeadlines.map(t => `
+        <div class="reminder-item">
+          <span class="task-priority p-${t.priority}">${t.priority}</span>
+          <div class="reminder-text">${t.title}</div>
+          <div class="reminder-due">${t.deadline}</div>
+        </div>`).join('')
+    : `<div class="empty-state">No deadlines in the next 7 days 🎉</div>`;
+}
+
+/* ─── SEED DATA ──────────────────────────────────────────────────────────── */
+function seedData() {
+  const today = new Date().toISOString().split('T')[0];
+  const fmt = offset => { const d = new Date(); d.setDate(d.getDate()+offset); return d.toISOString().split('T')[0]; };
+
+  state.clients = [
+    {id:1, name:'Alice Johnson',   email:'alice@example.com',  phone:'555-0101', value:3500, stage:'Proposal Sent'},
+    {id:2, name:'Bob Martinez',    email:'bob@example.com',    phone:'555-0102', value:1200, stage:'Contacted'},
+    {id:3, name:'Carol Davis',     email:'carol@example.com',  phone:'555-0103', value:8000, stage:'Negotiation'},
+    {id:4, name:'David Lee',       email:'david@example.com',  phone:'555-0104', value:500,  stage:'New Lead'},
+    {id:5, name:'Eva Chen',        email:'eva@example.com',    phone:'555-0105', value:4200, stage:'Won'},
+    {id:6, name:'Frank Wilson',    email:'frank@example.com',  phone:'555-0106', value:950,  stage:'Lost'},
+  ];
+  state.reminders = [
+    {id:1, note:'Call Alice about revised proposal', date:today,      color:'#e85d04', done:false},
+    {id:2, note:'Send pricing to Bob',               date:fmt(1),     color:'#e9c46a', done:false},
+    {id:3, note:'Follow up with Carol re: contract', date:fmt(2),     color:'#2a9d8f', done:false},
+  ];
+  state.tasks = [
+    {id:1, title:'Redesign homepage hero section',    assignee:'Sarah',  deadline:fmt(3),  priority:'high',   done:false},
+    {id:2, title:'Write Q1 email newsletter',         assignee:'Mike',   deadline:fmt(5),  priority:'medium', done:false},
+    {id:3, title:'Set up Google Analytics 4',         assignee:'You',    deadline:fmt(7),  priority:'medium', done:false},
+    {id:4, title:'Update product photos',             assignee:'Sarah',  deadline:fmt(10), priority:'low',    done:false},
+    {id:5, title:'Client invoice — Carol Davis',      assignee:'You',    deadline:fmt(1),  priority:'high',   done:false},
+  ];
+
+  const todayDay = new Date().toLocaleDateString('en-US',{weekday:'long'});
+  const nextDay  = DAYS[(DAYS.indexOf(todayDay)+1) % 7];
+  state.events[todayDay].push({title:'Team Standup 9 AM', color:''});
+  state.events[todayDay].push({title:'Client Call - Carol', color:'success-ev'});
+  state.events[nextDay].push({title:'Review proposals', color:'warning-ev'});
+  state.events['Wednesday'] = state.events['Wednesday']||[];
+  state.events['Wednesday'].push({title:'Marketing review', color:'success-ev'});
+  state.events['Friday'] = state.events['Friday']||[];
+  state.events['Friday'].push({title:'Weekly wrap-up', color:''});
+
+  const prevMonth = (offset) => { const d = new Date(); d.setMonth(d.getMonth()-offset); return d.toISOString().slice(0,7); };
+  state.transactions = [
+    {id:1, desc:'Client project — Eva Chen',      amount:4200, type:'income',  category:'Services',    date:prevMonth(0)+'-05'},
+    {id:2, desc:'Social media management retainer', amount:1500, type:'income', category:'Services',    date:prevMonth(0)+'-10'},
+    {id:3, desc:'Software subscriptions',          amount:320,  type:'expense', category:'Software',    date:prevMonth(0)+'-01'},
+    {id:4, desc:'Facebook Ads',                    amount:500,  type:'expense', category:'Marketing',   date:prevMonth(0)+'-12'},
+    {id:5, desc:'Client project — Alice Johnson',  amount:3500, type:'income',  category:'Services',    date:prevMonth(1)+'-18'},
+    {id:6, desc:'Office supplies',                 amount:180,  type:'expense', category:'Other',       date:prevMonth(1)+'-22'},
+    {id:7, desc:'Freelancer payment',              amount:800,  type:'expense', category:'Payroll',     date:prevMonth(1)+'-28'},
+    {id:8, desc:'Consulting session x2',           amount:1200, type:'income',  category:'Services',    date:prevMonth(2)+'-14'},
+    {id:9, desc:'Rent / co-working space',         amount:600,  type:'expense', category:'Rent / Utilities', date:prevMonth(2)+'-01'},
+    {id:10,desc:'Product sale batch',              amount:890,  type:'income',  category:'Products',    date:prevMonth(3)+'-20'},
+  ];
+}
+
+/* ─── INIT ───────────────────────────────────────────────────────────────── */
+seedData();
+renderPipeline();
+renderContacts();
+renderReminders();
+renderPrompts();
+renderTasks();
+renderPlanner();
+renderRevenue();
+renderAutomation();
+updateOverview();
+</script>
+</body>
+</html>
