@@ -252,24 +252,24 @@
     <h1>🌯 HotBurrito</h1>
     <p>Small Business Control Center</p>
   </div>
-  <nav>
-    <a href="#" class="nav-link active" data-panel="overview">
-      <span class="icon">🏠</span> Overview
+  <nav aria-label="Main navigation">
+    <a href="#" class="nav-link active" data-panel="overview" aria-label="Overview">
+      <span class="icon" aria-hidden="true">🏠</span> Overview
     </a>
-    <a href="#" class="nav-link" data-panel="clients">
-      <span class="icon">👥</span> Clients & Leads
+    <a href="#" class="nav-link" data-panel="clients" aria-label="Clients and Leads">
+      <span class="icon" aria-hidden="true">👥</span> Clients & Leads
     </a>
-    <a href="#" class="nav-link" data-panel="marketing">
-      <span class="icon">📣</span> AI Marketing
+    <a href="#" class="nav-link" data-panel="marketing" aria-label="AI Marketing">
+      <span class="icon" aria-hidden="true">📣</span> AI Marketing
     </a>
-    <a href="#" class="nav-link" data-panel="tasks">
-      <span class="icon">✅</span> Tasks & Projects
+    <a href="#" class="nav-link" data-panel="tasks" aria-label="Tasks and Projects">
+      <span class="icon" aria-hidden="true">✅</span> Tasks & Projects
     </a>
-    <a href="#" class="nav-link" data-panel="revenue">
-      <span class="icon">💰</span> Revenue & Expenses
+    <a href="#" class="nav-link" data-panel="revenue" aria-label="Revenue and Expenses">
+      <span class="icon" aria-hidden="true">💰</span> Revenue & Expenses
     </a>
-    <a href="#" class="nav-link" data-panel="automation">
-      <span class="icon">⚡</span> Automation Guide
+    <a href="#" class="nav-link" data-panel="automation" aria-label="Automation Guide">
+      <span class="icon" aria-hidden="true">⚡</span> Automation Guide
     </a>
   </nav>
   <div class="sidebar-footer">
@@ -683,6 +683,29 @@ document.querySelectorAll('.nav-link').forEach(link => {
   if (td2) td2.value = today;
 })();
 
+/* ─── Inline Validation Helper ───────────────────────────────────────────── */
+function showError(fieldId, msg) {
+  const field = document.getElementById(fieldId);
+  if (!field) return;
+  field.style.outline = '2px solid var(--danger)';
+  let errEl = field.parentNode.querySelector('.field-error');
+  if (!errEl) {
+    errEl = document.createElement('span');
+    errEl.className = 'field-error';
+    errEl.style.cssText = 'color:var(--danger);font-size:.75rem;display:block;margin-top:3px;';
+    errEl.setAttribute('role', 'alert');
+    field.parentNode.appendChild(errEl);
+  }
+  errEl.textContent = msg;
+}
+function clearError(fieldId) {
+  const field = document.getElementById(fieldId);
+  if (!field) return;
+  field.style.outline = '';
+  const errEl = field.parentNode.querySelector('.field-error');
+  if (errEl) errEl.remove();
+}
+
 /* ─── Modal Helpers ──────────────────────────────────────────────────────── */
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
@@ -693,7 +716,8 @@ document.querySelectorAll('.modal-overlay').forEach(ov => {
 /* ─── CLIENTS & LEADS ────────────────────────────────────────────────────── */
 function saveClient() {
   const name = document.getElementById('cl-name').value.trim();
-  if (!name) { alert('Name is required.'); return; }
+  if (!name) { showError('cl-name', 'Name is required.'); return; }
+  clearError('cl-name');
   state.clients.push({
     id:    Date.now(),
     name,
@@ -782,7 +806,8 @@ function filterContacts() {
 /* ─── REMINDERS ──────────────────────────────────────────────────────────── */
 function saveReminder() {
   const note = document.getElementById('rm-note').value.trim();
-  if (!note) { alert('Note is required.'); return; }
+  if (!note) { showError('rm-note', 'Note is required.'); return; }
+  clearError('rm-note');
   state.reminders.push({
     id:       Date.now(),
     note,
@@ -955,7 +980,7 @@ function renderPrompts() {
         <div class="prompt-category">${containerId.replace('-prompts','').replace('sm','Social').replace('ad','Ads').replace('email','Email')}</div>
         <h4>${p.title}</h4>
         <p>${p.desc}</p>
-        <div class="prompt-text" contenteditable="true">${p.prompt}</div>
+        <div class="prompt-text" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Editable prompt for ${p.title}">${p.prompt}</div>
         <div class="prompt-actions">
           <button class="btn btn-primary btn-sm" onclick="copyPrompt(this, this.closest('.prompt-card').querySelector('.prompt-text').innerText)">📋 Copy Prompt</button>
           <span class="copy-success">✓ Copied!</span>
@@ -970,7 +995,8 @@ function renderPrompts() {
 /* ─── TASKS ──────────────────────────────────────────────────────────────── */
 function saveTask() {
   const title = document.getElementById('t-title').value.trim();
-  if (!title) { alert('Task title is required.'); return; }
+  if (!title) { showError('t-title', 'Task title is required.'); return; }
+  clearError('t-title');
   state.tasks.push({
     id:       Date.now(),
     title,
@@ -1032,7 +1058,8 @@ function renderTasks() {
 /* ─── WEEKLY PLANNER ─────────────────────────────────────────────────────── */
 function saveEvent() {
   const title = document.getElementById('ev-title').value.trim();
-  if (!title) { alert('Event title is required.'); return; }
+  if (!title) { showError('ev-title', 'Event title is required.'); return; }
+  clearError('ev-title');
   const day = document.getElementById('ev-day').value;
   state.events[day].push({ title, color: document.getElementById('ev-color').value });
   document.getElementById('ev-title').value = '';
@@ -1055,7 +1082,10 @@ function renderPlanner() {
 function addTransaction() {
   const desc   = document.getElementById('tx-desc').value.trim();
   const amount = parseFloat(document.getElementById('tx-amount').value);
-  if (!desc || isNaN(amount) || amount <= 0) { alert('Please enter a description and valid amount.'); return; }
+  let valid = true;
+  if (!desc)               { showError('tx-desc',   'Description is required.'); valid = false; } else clearError('tx-desc');
+  if (isNaN(amount) || amount <= 0) { showError('tx-amount', 'Enter a valid positive amount.'); valid = false; } else clearError('tx-amount');
+  if (!valid) return;
   state.transactions.push({
     id:       Date.now(),
     desc,
